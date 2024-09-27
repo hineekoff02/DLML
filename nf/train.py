@@ -97,8 +97,8 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
         for batch in tqdm.tqdm(dataloader_val, desc=f"Validation epoch {epoch}"):
             with torch.no_grad():
                 batch_data, batch_context = batch
-                loss = -flow_model(batch_data, batch_context).mean()
-                total_loss_val += loss.item()
+                loss_val = -flow_model(batch_data, batch_context).mean()
+                total_loss_val += loss_val.item()
         
         # Print loss every epoch
         print(f"Epoch {epoch}, Train Loss: {total_loss_train / len(dataloader_train.dataset)}, Val Loss: {total_loss_val / len(dataloader_val.dataset)}")
@@ -106,7 +106,7 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
         all_losses_val.append(total_loss_val / len(dataloader_val.dataset))
 
         # Save models
-        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict()}#,'lr':scheduler.state_dict()}
+        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict(),'lr':scheduler.state_dict()}
         torch.save(state_dicts, f'models/epoch-{epoch}.pt')
     
     # Save loss data to a CSV file
