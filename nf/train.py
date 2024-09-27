@@ -62,7 +62,8 @@ class ConditionalNormalizingFlowModel(nn.Module):
 # Training the flow model
 def train_conditional_flow_model(flow_model, data_train, context_train, data_val, context_val, num_epochs=1000, batch_size=512, learning_rate=1e-3):
     optimizer = torch.optim.Adam(flow_model.parameters(), lr=learning_rate)
-
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.5)
+    
     # Convert data and context to tensors and move them to the same device as the model
     data_train = torch.tensor(data_train, dtype=torch.float32, device=flow_model.device)
     context_train = torch.tensor(context_train, dtype=torch.float32, device=flow_model.device)
@@ -89,6 +90,8 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
             loss.backward()
             optimizer.step()
 
+        scheduler.step()
+        
         # Validate
         flow_model.eval()
         for batch in tqdm.tqdm(dataloader_val, desc=f"Validation epoch {epoch}"):
@@ -103,7 +106,7 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
         all_losses_val.append(total_loss_val / len(dataloader_val.dataset))
 
         # Save models
-        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict()}
+        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict(),'lr':scheduler.state_dict()}
         torch.save(state_dicts, f'models/epoch-{epoch}.pt')
     
     # Save loss data to a CSV file
