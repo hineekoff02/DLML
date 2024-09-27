@@ -1,6 +1,9 @@
 import glob
 import tqdm
 import random
+import matplotlib.pyplot as plt
+import mplhep as hep
+hep.style.use(hep.style.ATLAS)
 import pandas as pd
 import numpy as np
 import torch
@@ -57,36 +60,75 @@ class ConditionalNormalizingFlowModel(nn.Module):
 
 
 # Training the flow model
-def train_conditional_flow_model(flow_model, data, context, num_epochs=1000, batch_size=512, learning_rate=1e-3):
+def train_conditional_flow_model(flow_model, data_train, context_train, data_val, context_val, num_epochs=1000, batch_size=512, learning_rate=1e-3):
     optimizer = torch.optim.Adam(flow_model.parameters(), lr=learning_rate)
 
     # Convert data and context to tensors and move them to the same device as the model
-    data = torch.tensor(data, dtype=torch.float32, device=flow_model.device)
-    context = torch.tensor(context, dtype=torch.float32, device=flow_model.device)
+    data_train = torch.tensor(data_train, dtype=torch.float32, device=flow_model.device)
+    context_train = torch.tensor(context_train, dtype=torch.float32, device=flow_model.device)
+    data_val = torch.tensor(data_val, dtype=torch.float32, device=flow_model.device)
+    context_val = torch.tensor(context_val, dtype=torch.float32, device=flow_model.device)
     
-    dataset = torch.utils.data.TensorDataset(data, context)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset_train = torch.utils.data.TensorDataset(data_train, context_train)
+    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
+    dataset_val = torch.utils.data.TensorDataset(data_val, context_val)
+    dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
 
-    all_losses = []
+    # Train
+    all_losses_train = []
+    all_losses_val = []
     for epoch in range(num_epochs):
-        total_loss = 0
-        for batch in tqdm.tqdm(dataloader, desc=f"Training epoch {epoch}"):
+        total_loss_train = 0
+        total_loss_val = 0
+        flow_model.train()
+        for batch in tqdm.tqdm(dataloader_train, desc=f"Training epoch {epoch}"):
             batch_data, batch_context = batch
             optimizer.zero_grad()
             loss = -flow_model(batch_data, batch_context).mean()  # Maximize the log probability
-            total_loss += loss.item()
+            total_loss_train += loss.item()
             loss.backward()
             optimizer.step()
 
+        # Validate
+        flow_model.eval()
+        for batch in tqdm.tqdm(dataloader_val, desc=f"Validation epoch {epoch}"):
+            with torch.no_grad():
+                batch_data, batch_context = batch
+                loss = -flow_model(batch_data, batch_context).mean()
+                total_loss_val += loss.item()
+        
         # Print loss every epoch
-        print(f"Epoch {epoch}, Loss: {total_loss}")
-        all_losses.append(total_loss / len(dataloader.dataset))
+        print(f"Epoch {epoch}, Train Loss: {total_loss_train / len(dataloader_train.dataset)}, Val Loss: {total_loss_val / len(dataloader_val.dataset)}")
+        all_losses_train.append(total_loss_train / len(dataloader_train.dataset))
+        all_losses_val.append(total_loss_val / len(dataloader_val.dataset))
 
+        # Save models
+        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict()}
+        torch.save(state_dicts, f'models/epoch-{epoch}.pt')
+    
     # Save loss data to a CSV file
-    df = pd.DataFrame({"loss": all_losses})
+    df = pd.DataFrame({"loss_train": all_losses_train, "loss_val": all_losses_val})
     df.to_csv("loss.csv")
 
+    fig,ax = plt.subplots()
+    plt.yscale('log')
+    plt.plot([i for i in range(num_epochs)],all_losses_train,label='train')
+    plt.plot([i for i in range(num_epochs)],all_losses_val,label='val')
+    plt.legend()
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.savefig("/web/bmaier/public_html/delight/nf/loss.png",bbox_inches='tight',dpi=300)
+    plt.savefig("/web/bmaier/public_html/delight/nf/loss.pdf",bbox_inches='tight')
+    
+    
+def validate():
+    flow_model.eval()
+    for batch in tqdm.tqdm(dataloader_val, desc=f"Validation epoch {epoch}"):
+        with torch.no_grad():
+            batch_data, batch_context = batch
+            loss = -flow_model(batch_data, batch_context).mean()
 
+            
 # Function to generate samples conditioned on the 5th dimension
 def generate_samples(flow_model, num_samples, fixed_value_5th_dim):
     # The context is the fixed value for the 5th dimension, we expand it to match num_samples
@@ -114,15 +156,20 @@ def concat_files(filelist):
 if __name__ == "__main__":
     # Loading data
     files_train = glob.glob("/ceph/bmaier/delight/ml/nf/data/train/*npy")
+    files_val = glob.glob("/ceph/bmaier/delight/ml/nf/data/val/*npy")
     random.seed(123)
     random.shuffle(files_train)
-    data = concat_files(files_train)
+    data_train = concat_files(files_train)
+    data_val = concat_files(files_val)
     
-    print(data.shape)
+    print(data_train.shape)
+    print(data_val.shape)
     
     # Separate the data into the first 4 dimensions (input) and the 5th dimension (context)
-    data_4d = data[:, :4]
-    context_5d = data[:, 4:5]
+    data_train_4d = data_train[:, :4]
+    context_train_5d = data_train[:, 4:5]
+    data_val_4d = data_val[:, :4]
+    context_val_5d = data_val[:, 4:5]
 
     # Initialize the conditional flow model (input dimension 4, context dimension 1, hidden dimension 64, 5 layers)
     input_dim = 4
@@ -136,8 +183,9 @@ if __name__ == "__main__":
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
     
     # Train the model
-    train_conditional_flow_model(flow_model, data_4d, context_5d, num_epochs=200)
+    train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=100)
 
+    exit(1)
     # Optionally, generate samples conditioned on a specific value of the 5th dimension
     fixed_value_5th_dim = torch.tensor([[0.5]])  # For example, conditioning on 5th dim being 0.5
     generated_samples = generate_samples(flow_model, num_samples=1000, fixed_value_5th_dim=fixed_value_5th_dim)
