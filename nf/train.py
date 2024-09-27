@@ -106,7 +106,7 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
         all_losses_val.append(total_loss_val / len(dataloader_val.dataset))
 
         # Save models
-        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict(),'lr':scheduler.state_dict()}
+        state_dicts = {'model':flow_model.state_dict(),'opt':optimizer.state_dict()}#,'lr':scheduler.state_dict()}
         torch.save(state_dicts, f'models/epoch-{epoch}.pt')
     
     # Save loss data to a CSV file
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
     
     # Train the model
-    train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=100)
+    train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=160)
 
     exit(1)
     # Optionally, generate samples conditioned on a specific value of the 5th dimension
