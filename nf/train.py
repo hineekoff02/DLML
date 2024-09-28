@@ -1,3 +1,4 @@
+import os
 import glob
 import tqdm
 import random
@@ -79,6 +80,14 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
     all_losses_train = []
     all_losses_val = []
     for epoch in range(num_epochs):
+        if os.path.isfile(f'models/epoch-{epoch}.pt'):
+            continue
+        else:
+            print(f"Re-starting training from epoch {epoch}")
+            flow_model.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['model'])
+            optimizer.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['opt'])
+            scheduler.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['lr'])
+            
         total_loss_train = 0
         total_loss_val = 0
         flow_model.train()
@@ -186,7 +195,7 @@ if __name__ == "__main__":
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
     
     # Train the model
-    train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=160)
+    train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=300)
 
     exit(1)
     # Optionally, generate samples conditioned on a specific value of the 5th dimension
