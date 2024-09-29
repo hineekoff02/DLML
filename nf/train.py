@@ -112,24 +112,6 @@ def validate():
             batch_data, batch_context = batch
             loss = -flow_model(batch_data, batch_context).mean()
 
-            
-def generate_samples(flow_model, num_samples, fixed_value_5th_dim):
-    # The context is the fixed value for the 5th dimension
-    context = torch.tensor(fixed_value_5th_dim, device=flow_model.device).repeat(1, 1)
-    
-    # Initialize an empty list to store the samples
-    all_samples = []
-    
-    # Generate samples one by one to avoid the extra dimension
-    for _ in range(num_samples):
-        samples = flow_model.sample(1, context)  # Generate 1 sample per context
-        all_samples.append(samples)
-    
-    # Concatenate all samples into a single tensor
-    all_samples = torch.cat(all_samples, dim=0)
-    
-    return all_samples
-
 
 def concat_files(filelist):
     all_data = None
@@ -172,23 +154,8 @@ if __name__ == "__main__":
     
     # Create and move the model to the appropriate device
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
-    logger.info(f'Done training.')
     
     # Train the model
     train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=301)
-    
-    #exit(1)
-
-    # Interesting values to sample: 1.14847155e+01, 1.00462506e+02, 1.00927151e+03, 1.01393946e+04, 9.95396231e+04
-    
-    sample_value = 1.00462506e+02
-    
-    # Optionally, generate samples conditioned on a specific value of the 5th dimension
-    fixed_value_5th_dim = torch.tensor([[sample_value]])  # For example, conditioning on 5th dim being 0.5
-    generated_samples = generate_samples(flow_model, num_samples=100, fixed_value_5th_dim=fixed_value_5th_dim)
-    generated_samples = np.squeeze(generated_samples.cpu().detach().numpy(), axis=1)
-    
-    print("Generated 4D samples conditioned on 5th dimension value:\n", generated_samples)
-    #print(type(generated_samples))
-    print(generated_samples.shape)
+    logger.info(f'Done training.')
     
