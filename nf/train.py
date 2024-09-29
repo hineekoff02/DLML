@@ -179,16 +179,6 @@ def generate_samples(flow_model, num_samples, fixed_value_5th_dim):
     
     return all_samples
 
-'''
-def generate_samples(flow_model, num_samples, fixed_value_5th_dim):
-    # The context is the fixed value for the 5th dimension, we expand it to match num_samples
-    context = torch.tensor(fixed_value_5th_dim, device=flow_model.device).repeat(num_samples, 1)
-    
-    # Sample from the learned distribution conditioned on the 5th dimension
-    samples = flow_model.sample(num_samples, context)
-    
-    return samples
-'''
 
 def concat_files(filelist):
     all_data = None
