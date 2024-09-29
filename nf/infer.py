@@ -18,7 +18,7 @@ if __name__ == "__main__":
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
 
     # Load the saved model weights
-    checkpoint = torch.load('models/epoch-300.pt', map_location=device)
+    checkpoint = torch.load('models/epoch-2.pt', map_location=device)
     flow_model.load_state_dict(checkpoint['model'])
 
     # Switch to evaluation mode
@@ -47,6 +47,7 @@ if __name__ == "__main__":
         gen = flow_model.sample(num_samples=10000, context=fixed_value_5th_dim)
         gen = np.squeeze(gen.cpu().detach().numpy(), axis=0)
         #print(gen)
+
         
         fig,ax = plt.subplots(figsize=(7,6))
         plt.hist(gen[:,0],histtype='step',bins=15,density=True,label='phonon channel',color='indianred')
@@ -57,9 +58,23 @@ if __name__ == "__main__":
         plt.hist(gen[:,3],histtype='step',bins=15,density=True,label='IR channel',color='cornflowerblue')
         plt.hist(sim[:,3],histtype='step',bins=15,density=True,linestyle='dashed',color='cornflowerblue')
         plt.text(0.05,0.90,"Nuclear recoil",transform=ax.transAxes,fontsize=18)
-        plt.text(0.05,0.82,"$E_{tot}=%.0f$ eV"%e,transform=ax.transAxes,fontsize=18)
+        plt.text(0.05,0.82,"$E_\mathrm{NR}=%.0f$ eV"%e,transform=ax.transAxes,fontsize=18)
         ax.set_xlabel("$E$ (eV)",labelpad=20)
         ax.set_ylabel("Arbitrary units")
         plt.legend(fontsize=17)
         plt.tight_layout()
         plt.savefig(f"/web/bmaier/public_html/delight/nf/gen_{i}.png",bbox_inches='tight',dpi=300)
+        
+
+        fig,ax = plt.subplots(figsize=(7,6))
+        plt.hist(sim[:,0],histtype='step',bins=15,label='phonon channel',linestyle='dashed',color='indianred')
+        plt.hist(sim[:,1],histtype='step',bins=15,label='triplet channel',linestyle='dashed',color='grey')
+        plt.hist(sim[:,2],histtype='step',bins=15,label='UV channel',linestyle='dashed',color='gold')
+        plt.hist(sim[:,3],histtype='step',bins=15,label='IR channel',linestyle='dashed',color='cornflowerblue')
+        plt.text(0.05,0.90,"Nuclear recoil",transform=ax.transAxes,fontsize=18)
+        plt.text(0.05,0.82,"$E_\mathrm{NR}=%.0f$ eV"%e,transform=ax.transAxes,fontsize=18)
+        ax.set_xlabel("$E$ (eV)",labelpad=20)
+        ax.set_ylabel("Arbitrary units")
+        plt.legend(fontsize=17)
+        plt.tight_layout()
+        plt.savefig(f"/web/bmaier/public_html/delight/sim_{i}.png",bbox_inches='tight',dpi=300)
