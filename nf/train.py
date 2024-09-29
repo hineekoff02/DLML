@@ -49,16 +49,23 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
     # Train
     all_losses_train = []
     all_losses_val = []
-    for epoch in range(num_epochs):
-        if os.path.isfile(f'models/epoch-{epoch}.pt'):
-            continue
-        else:
-            print(f"Re-starting training from epoch {epoch}")
+    for epoch in range(num_epochs): 
+        if len(os.listdir('models/')) != 0 and not os.path.isfile(f'models/epoch-{epoch}.pt'):
+            # Previous training exists but starting from new epoch
+            print(f"Re-starting training from epoch {epoch-1}")
             flow_model.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['model'])
             optimizer.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['opt'])
             scheduler.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['lr'])
             all_losses_train = pd.read_csv("loss.csv")["loss_train"].values.tolist()
             all_losses_val = pd.read_csv("loss.csv")["loss_val"].values.tolist()
+        elif os.path.isfile(f'models/epoch-{epoch}.pt'):
+            # Looking at already existing checkpoint, skip
+            continue
+        elif len(os.listdir('models/')) == 0:
+            # Fresh training
+            pass
+        else:
+            raise NotImplementedError
             
         total_loss_train = 0
         total_loss_val = 0
@@ -113,9 +120,13 @@ def validate():
             loss = -flow_model(batch_data, batch_context).mean()
 
 
-def concat_files(filelist):
+def concat_files(filelist,cutoff):
+    e_array = np.geomspace(10, 1e6, 500)
     all_data = None
     for f in tqdm.tqdm(filelist, desc="Loading data into array"):
+        idx = int(f.split("NR_final_")[-1].split("_")[0])
+        if e_array[idx] < cutoff:
+            continue
         if all_data is None:
             all_data = np.load(f)[:, :4]
         else:
@@ -130,13 +141,14 @@ if __name__ == "__main__":
     logger = setup_logger()
 
     # Loading data
-    logger.info('Load data')
+    cutoff_e = 60. # eV. Ingnore interactions below that.
+    logger.info('Load data for evens with energy larger than {cutoff_e} eV.')
     files_train = glob.glob("/ceph/bmaier/delight/ml/nf/data/train/*npy")
     files_val = glob.glob("/ceph/bmaier/delight/ml/nf/data/val/*npy")
     random.seed(123)
     random.shuffle(files_train)
-    data_train = concat_files(files_train)
-    data_val = concat_files(files_val)
+    data_train = concat_files(files_train,cutoff_e)
+    data_val = concat_files(files_val,cutoff_e)
         
     # Separate the data into the first 4 dimensions (input) and the 5th dimension (context)
     data_train_4d = data_train[:, :4]
