@@ -87,6 +87,8 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
             flow_model.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['model'])
             optimizer.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['opt'])
             scheduler.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['lr'])
+            all_losses_train = pd.read_csv("loss.csv")["loss_train"].values.tolist()
+            all_losses_val = pd.read_csv("loss.csv")["loss_val"].values.tolist()
             
         total_loss_train = 0
         total_loss_val = 0
@@ -124,8 +126,8 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
 
     fig,ax = plt.subplots()
     plt.yscale('log')
-    plt.plot([i for i in range(num_epochs)],all_losses_train,label='train')
-    plt.plot([i for i in range(num_epochs)],all_losses_val,label='val')
+    plt.plot([i for i in range(len(all_losses_train))],all_losses_train,label='train')
+    plt.plot([i for i in range(len(all_losses_val))],all_losses_val,label='val')
     plt.legend()
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
