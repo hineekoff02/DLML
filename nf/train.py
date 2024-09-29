@@ -9,13 +9,7 @@ hep.style.use(hep.style.ATLAS)
 import pandas as pd
 import numpy as np
 import torch
-import torch.nn as nn
 from model import ConditionalNormalizingFlowModel
-from nflows.flows import Flow
-from nflows.distributions.normal import StandardNormal
-from nflows.transforms import AffineCouplingTransform, RandomPermutation
-from nflows.transforms.base import CompositeTransform
-from nflows.nn.nets import ResidualNet
 
 def setup_logger():
     # Set up logging to console
