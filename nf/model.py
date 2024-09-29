@@ -50,5 +50,3 @@ class ConditionalNormalizingFlowModel(nn.Module):
         context = context.to(self.device)
         return self.flow.sample(num_samples, context)
 
-
-# Training the flow model
