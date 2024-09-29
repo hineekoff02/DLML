@@ -1,6 +1,7 @@
 import os
 import glob
 import tqdm
+import logging
 import random
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -14,6 +15,24 @@ from nflows.distributions.normal import StandardNormal
 from nflows.transforms import AffineCouplingTransform, RandomPermutation
 from nflows.transforms.base import CompositeTransform
 from nflows.nn.nets import ResidualNet
+
+def setup_logger():
+    # Set up logging to console
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)  # Set logging level
+
+    # Create console handler for stdout
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    # Create a formatter and set it for the console handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+
+    # Add the console handler to the logger
+    logger.addHandler(console_handler)
+
+    return logger
 
 # Define the normalizing flow model
 class ConditionalNormalizingFlowModel(nn.Module):
@@ -168,17 +187,17 @@ def concat_files(filelist):
 
 # Example usage
 if __name__ == "__main__":
+    logger = setup_logger()
+
     # Loading data
+    logger.info('Load data')
     files_train = glob.glob("/ceph/bmaier/delight/ml/nf/data/train/*npy")
     files_val = glob.glob("/ceph/bmaier/delight/ml/nf/data/val/*npy")
     random.seed(123)
     random.shuffle(files_train)
     data_train = concat_files(files_train)
     data_val = concat_files(files_val)
-    
-    print(data_train.shape)
-    print(data_val.shape)
-    
+        
     # Separate the data into the first 4 dimensions (input) and the 5th dimension (context)
     data_train_4d = data_train[:, :4]
     context_train_5d = data_train[:, 4:5]
@@ -191,14 +210,15 @@ if __name__ == "__main__":
     hidden_dim = 64
     num_layers = 5
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device)
+    logger.info(f'Training on {device}')
     
     # Create and move the model to the appropriate device
     flow_model = ConditionalNormalizingFlowModel(input_dim, context_dim, hidden_dim, num_layers, device).to(device)
+    logger.info(f'Done training.')
     
     # Train the model
     train_conditional_flow_model(flow_model, data_train_4d, context_train_5d, data_val_4d, context_val_5d, num_epochs=300)
-
+    
     exit(1)
     # Optionally, generate samples conditioned on a specific value of the 5th dimension
     fixed_value_5th_dim = torch.tensor([[0.5]])  # For example, conditioning on 5th dim being 0.5
