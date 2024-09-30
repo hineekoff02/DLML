@@ -49,15 +49,16 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
     # Train
     all_losses_train = []
     all_losses_val = []
-    for epoch in range(num_epochs): 
+    for epoch in range(num_epochs):
+        '''
         if len(os.listdir('models/')) != 0 and not os.path.isfile(f'models/epoch-{epoch}.pt'):
             # Previous training exists but starting from new epoch
             print(f"Re-starting training from epoch {epoch-1}")
             flow_model.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['model'])
             optimizer.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['opt'])
             scheduler.load_state_dict(torch.load(f'models/epoch-{epoch-1}.pt')['lr'])
-            all_losses_train = pd.read_csv("loss.csv")["loss_train"].values.tolist()
-            all_losses_val = pd.read_csv("loss.csv")["loss_val"].values.tolist()
+            #all_losses_train = pd.read_csv("loss.csv")["loss_train"].values.tolist()
+            #all_losses_val = pd.read_csv("loss.csv")["loss_val"].values.tolist()
         elif os.path.isfile(f'models/epoch-{epoch}.pt'):
             # Looking at already existing checkpoint, skip
             continue
@@ -66,7 +67,8 @@ def train_conditional_flow_model(flow_model, data_train, context_train, data_val
             pass
         else:
             raise NotImplementedError
-            
+        '''
+        
         total_loss_train = 0
         total_loss_val = 0
         flow_model.train()
