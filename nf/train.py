@@ -141,8 +141,8 @@ if __name__ == "__main__":
     logger = setup_logger()
 
     # Loading data
-    cutoff_e = 60. # eV. Ingnore interactions below that.
-    logger.info('Load data for evens with energy larger than {cutoff_e} eV.')
+    cutoff_e = 0. # eV. Ingnore interactions below that.
+    logger.info(f'Load data for evens with energy larger than {cutoff_e} eV.')
     files_train = glob.glob("/ceph/bmaier/delight/ml/nf/data/train/*npy")
     files_val = glob.glob("/ceph/bmaier/delight/ml/nf/data/val/*npy")
     random.seed(123)
