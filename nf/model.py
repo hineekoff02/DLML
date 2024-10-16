@@ -8,7 +8,7 @@ from nflows.transforms import AffineCouplingTransform, RandomPermutation
 from nflows.transforms.base import CompositeTransform
 from nflows.nn.nets import ResidualNet
 
-
+print('hello')
 class ConditionalNormalizingFlowModel(nn.Module):
     def __init__(self, input_dim, context_dim, hidden_dim, num_layers, device):
         super(ConditionalNormalizingFlowModel, self).__init__()
