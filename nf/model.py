@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
 from nflows.flows import Flow
 from nflows.distributions.normal import StandardNormal
 from nflows.transforms import AffineCouplingTransform, RandomPermutation
@@ -50,3 +52,76 @@ class ConditionalNormalizingFlowModel(nn.Module):
         context = context.to(self.device)
         return self.flow.sample(num_samples, context)
 
+class ConditionalDiffusionModel(nn.Module):
+    def __init__(self, input_dim, context_dim, hidden_dim, num_timesteps, device):
+        super(ConditionalDiffusionModel, self).__init__()
+        self.input_dim = input_dim
+        self.context_dim = context_dim
+        self.num_timesteps = num_timesteps
+        self.device = device  # Store the device
+
+        # Define a neural network to predict noise at each timestep conditioned on input and context
+        self.denoise_net = nn.Sequential(
+            nn.Linear(input_dim + context_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim)
+        ).to(self.device)
+
+    def q_sample(self, x_start, t, noise=None):
+        """
+        Diffusion forward process: Adds noise to data based on timestep t.
+        """
+        if noise is None:
+            noise = torch.randn_like(x_start).to(self.device)
+
+        alpha_t = self.get_alpha(t).to(self.device)
+        return alpha_t * x_start + (1 - alpha_t) * noise
+
+    def get_alpha(self, t):
+        """
+        Returns the alpha coefficient for a given timestep t (shape: [batch_size, 1]).
+        """
+        beta_t = torch.linspace(0.0001, 0.02, self.num_timesteps).to(self.device)
+        alpha_t = 1 - beta_t[t]
+        return alpha_t.view(-1, 1)
+
+    def p_sample(self, x_t, t, context):
+        """
+        Reverse process (sampling): Denoises the input at time t conditioned on the context.
+        """
+        # Concatenate input and context
+        x_t_context = torch.cat([x_t, context], dim=-1).to(self.device)
+
+        # Predict noise using the denoise network
+        predicted_noise = self.denoise_net(x_t_context)
+
+        alpha_t = self.get_alpha(t).to(self.device)
+        return (x_t - (1 - alpha_t) * predicted_noise) / alpha_t
+
+    def forward(self, x_start, context):
+        """
+        Forward pass of the diffusion model: Perform the forward diffusion process and then reverse it.
+        """
+        batch_size = x_start.size(0)
+        timesteps = torch.randint(0, self.num_timesteps, (batch_size,), device=self.device).long()
+
+        # Forward diffusion: Adding noise
+        noise = torch.randn_like(x_start).to(self.device)
+        x_noisy = self.q_sample(x_start, timesteps, noise)
+
+        # Reverse process: Denoise using the context
+        x_reconstructed = self.p_sample(x_noisy, timesteps, context)
+
+        # Return the predicted noise and actual noise to compute the loss
+        return x_reconstructed, noise
+
+    def sample(self, num_samples, context):
+        """
+        Sample new data by reversing the diffusion process.
+        """
+        x_t = torch.randn(num_samples, self.input_dim).to(self.device)
+        for t in reversed(range(self.num_timesteps)):
+            x_t = self.p_sample(x_t, t, context)
+        return x_t
